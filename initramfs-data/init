@@ -1,35 +1,43 @@
 #!/bin/busybox sh
 
+root_mount="/mnt/root"
+
 # installs symlinks for all busybox provided binaries
 /bin/busybox --install -s
 
-# mdev doesn't mount, but devtmpfs does, so we need to know
-root_mount="/mnt/root"
+# provides a busybox shell if this script fails
+rescue_shell() {
+	echo "Error: $@"
+	echo "Dropping to recovery shell."
+	exec /bin/sh
+}
+
+# tries to use mdev to populate /dev, falling back on devtmpfs
+# because mdev is suitable for loading firmware (devtmpfs isn't)
+mount_dev() {
+	if [ -x /sbin/mdev ]; then
+		echo /sbin/mdev > /proc/sys/kernel/hotplug
+		mount -t tmpfs none /dev
+		# if this works we're done, otherwise fall through
+		/sbin/mdev -s && return 0
+	fi
+	mount -t devtmpfs none /dev
+}
 
 # mounts things this file needs
 set_mounts() {
-	mount -t proc none /proc && mount -t sysfs none /sys && mount_dev
+	# proc and sys
+	mount -t sysfs none /sys && mount -t proc none /proc && mount_dev
 }
-
+# moves the mount or unmounts it if it failed to move it
+move_mount() {
+	mount --move "$@" "$root_mount/$@" || umount "$@"
+}
 # unmounts everything this file mounted
-remove_mounts() {
-	# move dev to root if possible, otherwise unmount it
-	[ -d "$root_mount/dev" ] && mount --move /dev "$root_mount/dev" || umount /dev
-	# unmount the others
-	umount /sys /proc
-}
-
-# mount dev, try using mdev first then fall back on devtmpfs
-# because mdev is suitable for loading firmware (devtmpfs isn't)
-mount_dev()
-{
-	mount -t devtmpfs none /dev
-	try_mdev
-}
-try_mdev() {
-	[ -x /sbin/mdev ] || return 1
-	echo /sbin/mdev > /proc/sys/kernel/hotplug
-	/sbin/mdev -s
+relocate_mounts() {
+	move_mount /sys
+	move_mount /proc
+	move_mount /dev
 }
 
 # processes the command line to handle mounting based upon UUID
@@ -39,31 +47,29 @@ uuidlabel_root() {
 			root=*)
 				dev="${cmd#root=}"
 				type="${dev%%=*}"
+				# if it's a label or uuid, look it up and update dev
 				if [ "$type" = "LABEL" ] || [ "$type" = "UUID" ] ; then
-					mount -o ro "$(findfs "$dev")" "$root_mount"
-				else
-					mount -o ro "${dev}" "$root_mount"
+					dev="$(findfs "$dev")"
 				fi
+				# mount it
+				mount -o ro "$dev" "$root_mount"
+				# return code indicates mounting success
+				return $?
 			;;
 		esac
 	done
 }
 
-# provides a busybox shell if this script fails
-rescue_shell() {
-	echo "Something went wrong. Dropping you to a shell."
-	exec /bin/sh
-}
 
 
 # mount what we need
-set_mounts || rescue_shell
+set_mounts || rescue_shell "Couldn't mount one or more of {proc,sys,dev}"
 
 # try to mount the root filesystem
-uuidlabel_root || rescue_shell
+uuidlabel_root || rescue_shell "Couldn't mount root filesystem; UUID may be invalid or you may be missing your hard-disk controller's drivers."
 
 # unmount things we no longer need; moves dev over to root, too
-remove_mounts
+relocate_mounts
 
 # boot the real thing.
 exec switch_root "$root_mount" /sbin/init
