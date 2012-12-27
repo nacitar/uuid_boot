@@ -44,6 +44,9 @@ relocate_mounts() {
 uuidlabel_root() {
 	for cmd in $(cat /proc/cmdline); do
 		case "$cmd" in
+			rescue)
+				rescue_shell "'rescue' present on command line."
+				;;
 			root=*)
 				dev="${cmd#root=}"
 				type="${dev%%=*}"
