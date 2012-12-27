@@ -20,6 +20,7 @@ installation
 ------------
     cd /usr/src/linux
     sudo git clone git://github.com/nacitar/uuid_boot.git
+    cd uuid_boot
     sudo ./install_use_flags.sh
 
 Now simply add the initramfs file to the kernel:
