@@ -1,0 +1,71 @@
+#!/bin/busybox sh
+
+# installs symlinks for all busybox provided binaries
+/bin/busybox --install -s
+
+# mdev doesn't mount, but devtmpfs does, so we need to know
+root_mount="/mnt/root"
+
+# mounts things this file needs
+set_mounts() {
+	mount -t proc none /proc && mount -t sysfs none /sys && mount_dev
+}
+
+# unmounts everything this file mounted
+remove_mounts() {
+	# move dev to root if possible, otherwise unmount it
+	[ -d "$root_mount/dev" ] && mount --move /dev "$root_mount/dev" || umount /dev
+	# unmount the others
+	umount /sys /proc
+}
+
+# mount dev, try using mdev first then fall back on devtmpfs
+# because mdev is suitable for loading firmware (devtmpfs isn't)
+mount_dev()
+{
+	mount -t devtmpfs none /dev
+	try_mdev
+}
+try_mdev() {
+	[ -x /sbin/mdev ] || return 1
+	echo /sbin/mdev > /proc/sys/kernel/hotplug
+	/sbin/mdev -s
+}
+
+# processes the command line to handle mounting based upon UUID
+uuidlabel_root() {
+	for cmd in $(cat /proc/cmdline); do
+		case "$cmd" in
+			root=*)
+				dev="${cmd#root=}"
+				type="${dev%%=*}"
+				if [ "$type" = "LABEL" ] || [ "$type" = "UUID" ] ; then
+					mount -o ro "$(findfs "$dev")" "$root_mount"
+				else
+					mount -o ro "${dev}" "$root_mount"
+				fi
+			;;
+		esac
+	done
+}
+
+# provides a busybox shell if this script fails
+rescue_shell() {
+	echo "Something went wrong. Dropping you to a shell."
+	exec /bin/sh
+}
+
+
+# mount what we need
+set_mounts || rescue_shell
+
+# try to mount the root filesystem
+uuidlabel_root || rescue_shell
+
+# unmount things we no longer need; moves dev over to root, too
+remove_mounts
+
+# boot the real thing.
+exec switch_root "$root_mount" /sbin/init
+
+# vi:set ft=sh:

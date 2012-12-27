@@ -1,0 +1,29 @@
+
+# all initramfs need a basic structure like this
+dir /dev 0755 0 0
+dir /bin 0755 0 0
+dir /sbin 0755 0 0
+dir /lib 0755 0 0
+dir /etc 0755 0 0
+dir /root 0755 0 0
+dir /proc 0755 0 0
+dir /sys 0755 0 0
+dir /mnt 0755 0 0
+dir /mnt/root 0755 0 0
+
+# our initramfs will rely upon /dev/tmpfs (and/or mdev, if available)
+# so we don't need to add dev nodes
+
+# instruct the kernel build to copy busybox over, which must
+# be built statically (use-flag 'static').  our init script
+# will instruct busybox to install its symlinks, so we
+# don't have to do it ourself.
+file /bin/busybox /bin/busybox 0755 0 0
+
+# the CWD for an initramfs control file is the kernel's source directory
+# our initramfs will live in /usr/src/initramfs.  thus, this instructs
+# the kernel build to copy in our init script.
+file /init /usr/src/uuid_boot/initramfs-data/init 0755 0 0
+
+# vi:set ft=conf:
+
