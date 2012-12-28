@@ -35,11 +35,11 @@ move_mount() {
 }
 # unmounts everything this file mounted
 relocate_mounts() {
-	local ret=0
+	ret=0
 	move_mount /sys || ret=1
 	move_mount /proc || ret=1
 	move_mount /dev || ret=1
-	return ret
+	return $ret
 }
 
 # processes the command line to handle mounting based upon UUID
@@ -83,7 +83,7 @@ set_mounts || rescue_shell "Couldn't mount one or more of {proc,sys,dev}"
 # try to mount the root filesystem
 uuidlabel_root || rescue_shell "Couldn't mount root filesystem; UUID may be invalid or you may be missing your hard-disk controller's drivers."
 
-# unmount things we no longer need; moves dev over to root, too
+# move dev, proc, and sys over to the new root filesystem
 relocate_mounts
 
 # boot the real thing.
