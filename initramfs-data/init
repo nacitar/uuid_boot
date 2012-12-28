@@ -31,36 +31,48 @@ set_mounts() {
 }
 # moves the mount or unmounts it if it failed to move it
 move_mount() {
-	mount --move "$@" "$root_mount/$@" || umount "$@"
+	mount --move "$@" "$root_mount/$@" || umount "$@" && return 1
 }
 # unmounts everything this file mounted
 relocate_mounts() {
-	move_mount /sys
-	move_mount /proc
-	move_mount /dev
+	local ret=0
+	move_mount /sys || ret=1
+	move_mount /proc || ret=1
+	move_mount /dev || ret=1
+	return ret
 }
 
 # processes the command line to handle mounting based upon UUID
 uuidlabel_root() {
+	mount_ret=1
+	rescue_present=0
 	for cmd in $(cat /proc/cmdline); do
 		case "$cmd" in
 			rescue)
-				rescue_shell "'rescue' present on command line."
+				# mark the rescue flag
+				rescue_present=1
 				;;
 			root=*)
-				dev="${cmd#root=}"
-				type="${dev%%=*}"
-				# if it's a label or uuid, look it up and update dev
-				if [ "$type" = "LABEL" ] || [ "$type" = "UUID" ] ; then
-					dev="$(findfs "$dev")"
+				# only mount once
+				if [ "$mount_ret" -ne 0 ]; then
+					dev="${cmd#root=}"
+					type="${dev%%=*}"
+					# if it's a label or uuid, look it up and update dev
+					if [ "$type" = "LABEL" ] || [ "$type" = "UUID" ] ; then
+						dev="$(findfs "$dev")"
+					fi
+					# try to mount it, if successful, set mount_ret to success
+					mount -o ro "$dev" "$root_mount" && mount_ret=0
 				fi
-				# mount it
-				mount -o ro "$dev" "$root_mount"
-				# return code indicates mounting success
-				return $?
 			;;
 		esac
 	done
+	# We drop to the shell last so we can see if the mount was successful or not
+	if [ "$rescue_present" -eq 1 ]; then
+		rescue_shell "'rescue' present on command line."
+	fi
+	# Indicate success
+	return $mount_ret
 }
 
 
