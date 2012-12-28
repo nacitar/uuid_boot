@@ -23,11 +23,15 @@ installation
 ------------
     cd /usr/src/linux
     sudo git clone git://github.com/nacitar/uuid_boot.git
+
+If on gentoo:
     cd uuid_boot
     # the following command assumes /etc/portage/package.* are all DIRECTORIES not files
     # if you have files, update your system by making a folder and putting your old file
     # in it with any name you want.
     sudo ./install_use_flags.sh
+	sudo emerge busybox
+Non-gentoo, build a static busybox with mdev support.
 
 Now simply add the initramfs file to the kernel:
     /usr/src/uuid_boot/initramfs
