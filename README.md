@@ -2,10 +2,10 @@ uuid_boot
 =========
 
 An initramfs that enables you to boot the linux kernel mounting filesystems by UUID.
-This initramfs also ensures that devtmpfs is mounted to /dev for the kernel if possible.
+This initramfs also ensures that either a tmpfs with mdev nodes or a devtmpfs is mounted to /dev for the kernel if possible.
 
 
-You can boot with the boot line root=UUID=<SOME_UUID>, you can get the UUID from blkid.
+You can boot with the boot line root=UUID=[unquoted lowercase uuid], you can get the UUID from blkid.
 
 You can also add "rescue" to the boot line to drop to a rescue shell after trying to mount the root filesystem.
 If the root filesystem cannot be mounted, you automatically drop to the rescue shell anyway.
