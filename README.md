@@ -38,7 +38,7 @@ If on gentoo:
 
 Non-gentoo
 
-    build a static busybox with mdev support.
+    build a static busybox with mdev support, as well as a static mdadm
 
 
 Now simply add the initramfs file to the kernel:
