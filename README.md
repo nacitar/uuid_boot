@@ -34,7 +34,7 @@ If on gentoo:
     # if you have files, update your system by making a folder and putting your old file
     # in it with any name you want.
     sudo ./install_use_flags.sh
-    sudo emerge busybox
+    sudo emerge busybox mdadm
 
 Non-gentoo
 
