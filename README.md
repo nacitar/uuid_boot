@@ -24,7 +24,7 @@ installation
 ------------
 Checking it out:
  
-    cd /usr/src/linux
+    cd /usr/src
     sudo git clone git://github.com/nacitar/uuid_boot.git
 
 If on gentoo:

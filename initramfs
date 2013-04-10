@@ -28,10 +28,13 @@ dir /mnt/root 0755 0 0
 
 
 # instruct the kernel build to copy busybox over, which must
-# be built statically (use-flag 'static', optionally 'mdev' too)
-# our init script will instruct busybox to install its symlinks,
-# so we don't have to make them ourself.
+# be built statically (use-flag 'static', and optionall 'mdev').
+# our init script will instruct busybox to install its symlinks, so we
+# don't have to do it ourself.
 file /bin/busybox /bin/busybox 0755 0 0
+# must build mdadm with the 'static' use flag as well
+file /sbin/mdadm /sbin/mdadm 0755 0 0
+file /etc/mdadm.conf /etc/mdadm.conf 0644 0 0
 
 # Our init script that does all the real work.
 file /init /usr/src/uuid_boot/initramfs-data/init 0755 0 0

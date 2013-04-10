@@ -3,3 +3,5 @@
 # a busybox suitable for an initramfs must be static
 sys-apps/busybox static mdev
 
+# a mdadm suitable for an initramfs must be static
+sys-fs/mdadm static

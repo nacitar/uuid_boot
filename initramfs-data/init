@@ -7,8 +7,8 @@ root_mount="/mnt/root"
 
 # provides a busybox shell if this script fails
 rescue_shell() {
-	echo "Error: $@"
-	echo "Dropping to recovery shell."
+	[ -n "$@" ] && echo "ERROR: $@"
+	echo "Something went wrong. Dropping you to a shell."
 	exec /bin/sh
 }
 
@@ -75,10 +75,16 @@ uuidlabel_root() {
 	return $mount_ret
 }
 
-
+assemble_mdadm() {
+	[ -x /sbin/mdadm ] || return 1
+	/sbin/mdadm --assemble --scan
+}
 
 # mount what we need
 set_mounts || rescue_shell "Couldn't mount one or more of {proc,sys,dev}"
+
+# initialize any mdadm arrays
+assemble_mdadm
 
 # try to mount the root filesystem
 uuidlabel_root || rescue_shell "Couldn't mount root filesystem; UUID may be invalid or you may be missing your hard-disk controller's drivers."
