@@ -2,19 +2,14 @@
 
 root_mount="/mnt/root"
 
-# installs symlinks for all busybox provided binaries
-/bin/busybox --install -s
-
-# provides a busybox shell if this script fails
+# Functions
 rescue_shell() {
-	[ -n "$@" ] && echo "ERROR: $@"
-	echo "Something went wrong. Dropping you to a shell."
+	[ -n "$@" ] && echo "ERROR: $@" 1>&2
+	echo "Something went wrong. Dropping you to a shell." 1>&2
 	exec /bin/sh
 }
-
-# tries to use mdev to populate /dev, falling back on devtmpfs
-# because mdev is suitable for loading firmware (devtmpfs isn't)
 mount_dev() {
+	# Try to use mdev (suitable for loading firmware) but fall back on devtmpfs
 	if [ -x /sbin/mdev ]; then
 		echo /sbin/mdev > /proc/sys/kernel/hotplug
 		mount -t tmpfs none /dev
@@ -23,76 +18,51 @@ mount_dev() {
 	fi
 	mount -t devtmpfs none /dev
 }
-
-# mounts things this file needs
-set_mounts() {
-	# proc and sys
-	mount -t sysfs none /sys && mount -t proc none /proc && mount_dev
-}
-# moves the mount or unmounts it if it failed to move it
 move_mount() {
-	mount --move "$@" "$root_mount/$@" || umount "$@" && return 1
-}
-# unmounts everything this file mounted
-relocate_mounts() {
-	ret=0
-	move_mount /sys || ret=1
-	move_mount /proc || ret=1
-	move_mount /dev || ret=1
-	return $ret
-}
-
-# processes the command line to handle mounting based upon UUID
-uuidlabel_root() {
-	mount_ret=1
-	rescue_present=0
-	for cmd in $(cat /proc/cmdline); do
-		case "$cmd" in
-			rescue)
-				# mark the rescue flag
-				rescue_present=1
-				;;
-			root=*)
-				# only mount once
-				if [ "$mount_ret" -ne 0 ]; then
-					dev="${cmd#root=}"
-					type="${dev%%=*}"
-					# if it's a label or uuid, look it up and update dev
-					if [ "$type" = "LABEL" ] || [ "$type" = "UUID" ] ; then
-						dev="$(findfs "$dev")"
-					fi
-					# try to mount it, if successful, set mount_ret to success
-					mount -o ro "$dev" "$root_mount" && mount_ret=0
-				fi
-			;;
-		esac
-	done
-	# We drop to the shell last so we can see if the mount was successful or not
-	if [ "$rescue_present" -eq 1 ]; then
-		rescue_shell "'rescue' present on command line."
+	if ! mount --move "$@" "$root_mount/$@"; then
+		umount "$@"
+		return 1
 	fi
-	# Indicate success
-	return $mount_ret
 }
 
-assemble_mdadm() {
-	[ -x /sbin/mdadm ] || return 1
-	/sbin/mdadm --assemble --scan
-}
+# Install busybox symlinks
+/bin/busybox --install -s
 
-# mount what we need
-set_mounts || rescue_shell "Couldn't mount one or more of {proc,sys,dev}"
+# Mount /sys /proc /dev
+mount -t sysfs none /sys && mount -t proc none /proc && mount_dev
+# Assemble mdadm arrays
+[ -x /sbin/mdadm ] && /sbin/mdadm --assemble --scan
 
-# initialize any mdadm arrays
-assemble_mdadm
+rescue_present=0
+root_device=""
+init_binary=""
 
-# try to mount the root filesystem
-uuidlabel_root || rescue_shell "Couldn't mount root filesystem; UUID may be invalid or you may be missing your hard-disk controller's drivers."
+# Process the command line
+for arg in $(cat /proc/cmdline); do
+	case "$arg" in
+		rescue)
+			rescue_present=1
+		;;
+		root=*)
+			root_device="${arg#*=}"
+			device="$(findfs "$root_device" 2>/dev/null)"
+			if [ $? -eq 0 ]; then
+				root_device="$device"
+			fi
+		;;
+		init=*)
+			init_binary="${arg#*=}"
+		;;
+	esac
+done
 
-# move dev, proc, and sys over to the new root filesystem
-relocate_mounts
+[ -e "$root_device" ] || rescue_shell "Root device does not exist: $root_device"
+[ $rescue_present -eq 0 ] || rescue_shell "'rescue' present on command line."
+mount -o ro "$root_device" "$root_mount" || rescue_shell "Failed to mount root: $root_device" 
+move_mount /sys || rescue_shell "Failed to relocate /sys mount."
+move_mount /proc || rescue_shell "Failed to relocate /proc mount."
+move_mount /dev || rescue_shell "Failed to relocate /dev mount."
 
-# boot the real thing.
-exec switch_root "$root_mount" /sbin/init
+exec switch_root "$root_mount" "${init_binary:=/sbin/init}"
 
 # vi:set ft=sh:
