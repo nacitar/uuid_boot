@@ -57,12 +57,12 @@ for arg in $(cat /proc/cmdline); do
 done
 
 [ -e "$root_device" ] || rescue_shell "Root device does not exist: $root_device"
-[ $rescue_present -eq 0 ] || rescue_shell "'rescue' present on command line."
 mount -o ro "$root_device" "$root_mount" || rescue_shell "Failed to mount root: $root_device" 
 move_mount /sys || rescue_shell "Failed to relocate /sys mount."
 move_mount /proc || rescue_shell "Failed to relocate /proc mount."
 move_mount /dev || rescue_shell "Failed to relocate /dev mount."
 
+[ $rescue_present -eq 0 ] || rescue_shell "Rescue shell requested."
 exec switch_root "$root_mount" "${init_binary:=/sbin/init}"
 
 # vi:set ft=sh:
