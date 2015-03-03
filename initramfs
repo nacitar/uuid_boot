@@ -1,8 +1,20 @@
-# Device nodes
+# basic directory structure
 dir /dev 0755 0 0
-# even though we will use mdev or devtmpfs, our init script that sets up
-# the device nodes in that way needs some device nodes to be present before
-# it starts, otherwise we won't be able to print anything or drop to shell.
+dir /bin 0755 0 0
+dir /sbin 0755 0 0
+dir /lib 0755 0 0
+dir /etc 0755 0 0
+dir /root 0700 0 0
+dir /proc 0755 0 0
+dir /sys 0755 0 0
+dir /mnt 0755 0 0
+# mount point for the root file system
+dir /mnt/root 0755 0 0
+
+# device nodes
+# even though we will use devtmpfs, our init script that sets up the device
+# nodes needs some device nodes to be present before it starts, otherwise it
+# won't be able to print anything or drop to shell.
 nod /dev/console 0600 0 0 c 5 1
 nod /dev/tty 0666 0 0 c 5 0
 nod /dev/tty0 0660 0 0 c 4 0
@@ -13,26 +25,10 @@ nod /dev/random 0666 0 0 c 1 8
 nod /dev/urandom 0666 0 0 c 1 9
 nod /dev/zero 0600 0 0 c 1 5
 
-# Basic directory structure
-dir /bin 0755 0 0
-dir /sbin 0755 0 0
-dir /lib 0755 0 0
-dir /etc 0755 0 0
-dir /root 0700 0 0
-dir /proc 0755 0 0
-dir /sys 0755 0 0
-
-# Mount point for the root file system
-dir /mnt 0755 0 0
-dir /mnt/root 0755 0 0
-
-
-# instruct the kernel build to copy busybox over, which must
-# be built statically (use-flag 'static', and optionall 'mdev').
-# our init script will instruct busybox to install its symlinks, so we
-# don't have to do it ourself.
+# files to include
+# must build busybox with the 'static' use flag
 file /bin/busybox /bin/busybox 0755 0 0
-# must build mdadm with the 'static' use flag as well
+# must build mdadm with the 'static' use flag
 file /sbin/mdadm /sbin/mdadm 0755 0 0
 file /etc/mdadm.conf /etc/mdadm.conf 0644 0 0
 

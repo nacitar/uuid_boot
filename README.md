@@ -3,7 +3,7 @@ uuid\_boot
 
 An initramfs that enables you to boot the linux kernel mounting filesystems by UUID.
 
-This initramfs also ensures that either a tmpfs with mdev nodes or a devtmpfs is mounted to /dev for the kernel if possible.
+This initramfs leaves /sys, /proc, and /dev (devtmpfs) mounted.
 
 You can boot with the boot line root=UUID=[unquoted lowercase uuid], you can get the UUID from blkid.
 
@@ -23,7 +23,7 @@ The actual initramfs data lives in initramfs-data.
 installation
 ------------
 Checking it out:
- 
+
     cd /usr/src
     sudo git clone git://github.com/nacitar/uuid_boot.git
 

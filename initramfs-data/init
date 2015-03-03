@@ -8,16 +8,6 @@ rescue_shell() {
 	echo "Something went wrong. Dropping you to a shell." 1>&2
 	exec /bin/sh
 }
-mount_dev() {
-	# Try to use mdev (suitable for loading firmware) but fall back on devtmpfs
-	if [ -x /sbin/mdev ]; then
-		echo /sbin/mdev > /proc/sys/kernel/hotplug
-		mount -t tmpfs none /dev
-		# if this works we're done, otherwise fall through
-		/sbin/mdev -s && return 0
-	fi
-	mount -t devtmpfs none /dev
-}
 move_mount() {
 	if ! mount --move "$@" "$root_mount/$@"; then
 		umount "$@"
@@ -29,7 +19,10 @@ move_mount() {
 /bin/busybox --install -s
 
 # Mount /sys /proc /dev
-mount -t sysfs none /sys && mount -t proc none /proc && mount_dev
+mount -t sysfs none /sys || rescue_shell "Failed to mount /sys"
+mount -t proc none /proc || rescue_shell "Failed to mount /proc"
+mount -t devtmpfs none /dev || rescue_shell "Failed to mount /dev"
+
 # Assemble mdadm arrays
 [ -x /sbin/mdadm ] && /sbin/mdadm --assemble --scan
 
